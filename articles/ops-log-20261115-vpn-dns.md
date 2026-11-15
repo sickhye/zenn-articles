@@ -78,6 +78,8 @@ ip route get 1.1.1.1
 
 VPN が `1.1.1.1` へのルートを配っていて、このアドレスへの通信も `tun0` を通っていました。つまり、インターネット確認用の2つのターゲットが、どちらも VPN に依存していたのです。
 
+![2つのターゲットがどちらも固まった VPN を通っていた](/images/ops-log-20261115-vpn-dns/probe-routes.png)
+
 ```mermaid
 flowchart LR
   L[Linux] -->|api.github.com の名前解決| D[DNS ~. は VPN 経由]

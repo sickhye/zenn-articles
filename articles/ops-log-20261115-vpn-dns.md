@@ -10,14 +10,14 @@ published: true
 
 ## TL;DR (English)
 
-- A work Linux box lost all name resolution for about 30 minutes because the company VPN hung, and systemd-resolved sent every DNS query through that VPN.
+- Work-PC(Linux), a work Linux desktop, lost all name resolution for about 30 minutes because the company VPN hung, and systemd-resolved sent every DNS query through that VPN.
 - Our VPN watchdog saw "internet down" instead of "VPN hung" and never restarted the VPN: both of its internet probes (a hostname and 1.1.1.1) silently depended on the VPN too.
 - Fix: probe raw IPs over TCP with no DNS, and drop any target that `ip route get` says goes out through the VPN interface.
 - Our alert DMs failed for the same reason (no DNS), so nobody was told until it was over (a recovery DM came at 10:35). That fix is next.
 
 ## はじめに
 
-AI エージェントと一緒に運用している Linux マシン（Ubuntu）で、朝に30分ほど外に出られなくなりました。この記事はその運用日誌です。
+AI エージェントと一緒に運用している Work-PC(Linux)（Ubuntu）で、朝に30分ほど外に出られなくなりました。この記事はその運用日誌です。
 
 このマシンの日々の運用は AI エージェント（Claude Code）が担当しています。sudo のパスワード入力と、画面を見て判断するところはオーナーが担当します。障害が起きると、記録はエージェントが書きます。あとで同じことが起きたときに、自分たちで読み返すためです。
 
@@ -83,7 +83,7 @@ VPN が `1.1.1.1` へのルートを配っていて、このアドレスへの�
 
 ```mermaid
 flowchart LR
-  L[Linux] -->|api.github.com の名前解決| D[DNS ~. は VPN 経由]
+  L["Work-PC(Linux)"] -->|api.github.com の名前解決| D[DNS ~. は VPN 経由]
   D --> V[VPN tun0（固まっている）]
   L -->|1.1.1.1| V
   L -.->|使われていない| I((インターネット))
@@ -134,19 +134,19 @@ if len(usable) == 0 {
 
 このマシンでは、ツールの修正を次の順番で進めています。
 
-1. 障害を起こしたマシン（Linux）のエージェントが原因を調べ、修正案を出す
-2. 別のエージェント（コンサルタント役）が優先順位を決め、修正を Mac のメインのエージェントに依頼する
-3. Mac 側で修正とテストを行い、コンサルタントが検収する
-4. 検収が終わったら、Linux マシンにも適用する
+1. 障害を起こした Work-PC のエージェントが原因を調べ、修正案を出す
+2. 別のエージェント（コンサルタント役）が優先順位を決め、修正を Work-MacMini(macOS) のメインのエージェントに依頼する
+3. Work-MacMini 側で修正とテストを行い、コンサルタントが検収する
+4. 検収が終わったら、Work-PC にも適用する
 
-今回、手順4で一つ問題が出ました。エージェント同士のメッセージサーバーは、バイナリファイルを受け付けません（`415`）。コンサルタントは制限を回避する形でバイナリを送ることはせず、ソースコードをテキストで送りました。Linux 側では sha256 を照合し、`go test -race` を通してからビルドして、デプロイしました。
+今回、手順4で一つ問題が出ました。エージェント同士のメッセージサーバーは、バイナリファイルを受け付けません（`415`）。コンサルタントは制限を回避する形でバイナリを送ることはせず、ソースコードをテキストで送りました。Work-PC 側では sha256 を照合し、`go test -race` を通してからビルドして、デプロイしました。
 
 ```bash
 go test -race ./cmd/vpn-watch/
 CGO_ENABLED=0 go build -trimpath -o vpn-watch ./cmd/vpn-watch
 ```
 
-ソースで受け取ると、Linux 側でもテストを回せます。結果的に、バイナリを受け取るよりも確かな手順になりました。
+ソースで受け取ると、Work-PC 側でもテストを回せます。結果的に、バイナリを受け取るよりも確かな手順になりました。
 
 ## まだ残っていること: monitor-dm
 

@@ -1,5 +1,5 @@
 ---
-title: "サポートが終わった MacBook Pro (2016) を Ubuntu で蘇らせる作戦: Touch Bar・スピーカー・5GHz・⌘キー"
+title: "サポートが終わった MacBook Pro (2016) を Ubuntu で蘇らせる作戦"
 emoji: "💻"
 type: "tech"
 topics: ["ubuntu", "macbookpro", "linux", "gnome", "claudecode"]

@@ -13,7 +13,7 @@ published: true
 - A work Linux box lost all name resolution for about 30 minutes because the company VPN hung, and systemd-resolved sent every DNS query through that VPN.
 - Our VPN watchdog saw "internet down" instead of "VPN hung" and never restarted the VPN: both of its internet probes (a hostname and 1.1.1.1) silently depended on the VPN too.
 - Fix: probe raw IPs over TCP with no DNS, and drop any target that `ip route get` says goes out through the VPN interface.
-- Our alert DMs failed for the same reason (no DNS), so nobody was told. That fix is next.
+- Our alert DMs failed for the same reason (no DNS), so nobody was told until it was over (a recovery DM came at 10:35). That fix is next.
 
 ## はじめに
 
@@ -42,6 +42,7 @@ AI エージェントと一緒に運用している Linux マシン（Ubuntu）�
 | 10:30 | `monitor-dm` が「エージェントの応答なし」も検知。やはり DM を送れない |
 | 10:31 | オーナーが「インターネットが止まったみたい」と気付き、VPN を手で再接続 |
 | 10:32 | 復旧。`vpn-watch` の連続失敗は19回 |
+| 10:35 | `monitor-dm` が「🔴→✅」（障害の開始・終了時刻つき）の DM を送る。障害中の通知はこれが最初 |
 
 障害はおよそ30分でした。気付いたのは監視ではなく、オーナーでした。
 
@@ -101,7 +102,9 @@ flowchart LR
 10:30:29 monitor-dm: DM send FAILED (rc=1): ... lookup slack.com on 127.0.0.53:53: read udp ...
 ```
 
-Slack の API も名前解決できないので、通知は届きません。さらに、復旧した後に「さっき送れなかった通知」を送る処理で、送るべき通知が0件になっていました。結果として、オーナーには何も届きませんでした。
+Slack の API も名前解決できないので、障害の間は通知が届きません。復旧後の 10:35 に、障害の開始・終了時刻を書いた「🔴→✅」の DM がやっと届きました。つまり、オーナーが知ることができたのは、すべて終わった後でした。
+
+なお、このときのログは `DM sent (0 incident line(s), 0 warning line(s), 0 recovery line(s))` でした。最初は「送る内容が0件だった」と読みましたが、実際には「🔴→✅」の行をログの件数に数えていなかっただけで、DM 自体には入っていました。
 
 ## 修正: vpn-watch
 
@@ -150,7 +153,7 @@ CGO_ENABLED=0 go build -trimpath -o vpn-watch ./cmd/vpn-watch
 通知の問題は、まだ修正中です。
 
 - DNS が引けないときでも届く、別の経路（エージェント同士のメッセージサーバー。LAN 内の IP アドレスで直接つながる）で知らせる
-- 復旧した後に、送れなかった通知を確実に送る
+- ログの件数に「🔴→✅」の行も含める（今回、ログを読み違える原因になった）
 
 また、エージェントが応答しなくなったことも、今回は誰にも届きませんでした。エージェントの死活監視も同じ経路で通知するようにします。
 
@@ -160,7 +163,7 @@ CGO_ENABLED=0 go build -trimpath -o vpn-watch ./cmd/vpn-watch
 | --- | --- | --- |
 | VPN が固まると名前解決が全滅 | systemd-resolved の `~.` で DNS がすべて VPN 経由 | （VPN の仕様。監視側で対応） |
 | VPN を再起動しなかった | インターネット確認の2ターゲットがどちらも VPN 依存 | DNS なしの TCP プローブ、VPN 経由のターゲットを除外 |
-| 誰にも通知されなかった | 通知（Slack API）も DNS 依存 | DNS に依存しない経路を追加（修正中） |
+| 障害の間は誰にも通知されなかった | 通知（Slack API）も DNS 依存 | DNS に依存しない経路を追加（修正中） |
 
 監視ツールは、監視したい対象が止まったときに一緒に止まらないことが大事です。今回は「インターネットを確かめる手段」と「知らせる手段」の両方が、止まった VPN に依存していました。
 
